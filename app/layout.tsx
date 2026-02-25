@@ -3,10 +3,16 @@ export const metadata = {
   description: 'โรงเรียนสอนหุ่นยนต์ จังหวัดจันทบุรี',
 }
 
-export default function RootLayout({ children }) {
+import type { ReactNode } from "react";
+
+export default function RootLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
   return (
     <html lang="th">
       <body>{children}</body>
     </html>
-  )
+  );
 }
