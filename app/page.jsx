@@ -145,33 +145,7 @@ function BaanBotLogo({ width = 260, style = {} }) {
   );
 }
 
-// ==================== MOCK DATA ====================
-const MOCK_NEWS = [
-  {
-    id: 1,
-    title: "หุ่นยนต์ AI รุ่นใหม่สามารถเรียนรู้ทักษะมนุษย์ได้เร็วกว่าเดิม 10 เท่า",
-    summary: "นักวิจัยจาก MIT ได้พัฒนาหุ่นยนต์ที่ใช้ระบบ AI ขั้นสูงสามารถเรียนรู้การเคลื่อนไหวและทักษะต่าง ๆ ได้อย่างรวดเร็ว เปิดโอกาสใหม่สำหรับการประยุกต์ใช้ในชีวิตประจำวัน",
-    date: "25 ก.พ. 2569",
-    tag: "AI & หุ่นยนต์",
-    source: "MIT News"
-  },
-  {
-    id: 2,
-    title: "การแข่งขันหุ่นยนต์โอลิมปิกระดับนานาชาติ 2025 ประกาศรายชื่อประเทศที่เข้าร่วม",
-    summary: "กว่า 50 ประเทศทั่วโลกได้ลงทะเบียนเข้าร่วมการแข่งขันหุ่นยนต์ระดับโลกครั้งยิ่งใหญ่ โดยประเทศไทยส่งทีมจำนวน 3 ทีมเข้าร่วมชิงชัย",
-    date: "23 ก.พ. 2569",
-    tag: "การแข่งขัน",
-    source: "WRO Official"
-  },
-  {
-    id: 3,
-    title: "LEGO Mindstorms รุ่นใหม่ EV5 เปิดตัวพร้อมชิป AI ในตัว",
-    summary: "LEGO ประกาศเปิดตัวชุดหุ่นยนต์รุ่นใหม่ล่าสุดที่มาพร้อมกับความสามารถด้าน AI และ Machine Learning ในตัว เหมาะสำหรับเด็กอายุ 8 ปีขึ้นไป",
-    date: "20 ก.พ. 2569",
-    tag: "เทคโนโลยี",
-    source: "LEGO Education"
-  },
-];
+// ==================== MOCK DATA (ถูกลบ → ใช้ Supabase แทน) ====================
 
 const TIME_SLOTS = [
   { id: 1, time: "08:30 - 10:30", label: "รอบเช้า 1" },
@@ -181,20 +155,9 @@ const TIME_SLOTS = [
   { id: 5, time: "17:00 - 19:00", label: "รอบเย็น" },
 ];
 
-const MOCK_BOOKINGS = {
-  "2026-02-26": { 1: true, 3: true },
-  "2026-02-27": { 2: true, 5: true },
-  "2026-02-28": { 1: true, 2: true, 4: true },
-};
+// MOCK_BOOKINGS ถูกลบ → โหลดจาก Supabase ใน BookingPage
 
-const GALLERY_IMAGES = [
-  { id: 1, url: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=400&h=300&fit=crop", caption: "น้องๆ กำลังสร้างหุ่นยนต์ LEGO" },
-  { id: 2, url: "https://images.unsplash.com/photo-1561557944-6e7860d1a7eb?w=400&h=300&fit=crop", caption: "การแข่งขันหุ่นยนต์ภายใน" },
-  { id: 3, url: "https://images.unsplash.com/photo-1546776310-eef45dd6d63c?w=400&h=300&fit=crop", caption: "เรียนรู้การเขียนโปรแกรม" },
-  { id: 4, url: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&h=300&fit=crop", caption: "ทดสอบหุ่นยนต์บนสนาม" },
-  { id: 5, url: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&h=300&fit=crop", caption: "นักเรียนระดับสูง" },
-  { id: 6, url: "https://images.unsplash.com/photo-1535378917042-10a22c95931a?w=400&h=300&fit=crop", caption: "กิจกรรม Open House" },
-];
+// GALLERY_IMAGES ถูกลบ → ใช้ photos จาก Supabase
 
 // ==================== HELPERS ====================
 const getDayName = (dateStr) => {
@@ -556,6 +519,19 @@ function NewsPage() {
   const [loading, setLoading] = useState(false);
   const [aiResult, setAiResult] = useState(null);
   const [url, setUrl] = useState("");
+  const [newsList, setNewsList] = useState([]);
+
+  useEffect(() => {
+    const fetchNews = async () => {
+      const { data } = await supabase
+        .from('news')
+        .select('*')
+        .eq('published', true)
+        .order('created_at', { ascending: false });
+      if (data) setNewsList(data);
+    };
+    fetchNews();
+  }, []);
 
   const handleTranslate = async () => {
     if (!url) return;
@@ -630,7 +606,7 @@ function NewsPage() {
 
         {/* News Grid */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 24 }}>
-          {MOCK_NEWS.map(n => (
+          {newsList.map(n => (
             <div key={n.id} onClick={() => setSelected(selected && selected.id === n.id ? null : n)} style={{
               background: "rgba(255,255,255,0.03)", border: selected && selected.id === n.id ? "1px solid rgba(255,215,0,0.4)" : "1px solid rgba(255,255,255,0.07)",
               borderRadius: 20, padding: 24, cursor: "pointer",
@@ -671,13 +647,36 @@ function BookingPage({ user, setPage }) {
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [selectedTrialHour, setSelectedTrialHour] = useState(null);
   const [form, setForm] = useState({ name: "", phone: "", childAge: "", note: "" });
-  const [bookings, setBookings] = useState(MOCK_BOOKINGS);
+  const [bookings, setBookings] = useState({});
   const [trialBookings, setTrialBookings] = useState({});
   const [success, setSuccess] = useState(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
   // bookable window: today → +30 days
   const bookableSet = getBookableDateSet();
+
+  // โหลด bookings จาก Supabase
+  useEffect(() => {
+    const fetchBookings = async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const future = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
+      const { data } = await supabase
+        .from('bookings')
+        .select('booking_date, slot_id')
+        .gte('booking_date', today)
+        .lte('booking_date', future)
+        .eq('status', 'confirmed');
+      if (data) {
+        const mapped = {};
+        data.forEach(b => {
+          if (!mapped[b.booking_date]) mapped[b.booking_date] = {};
+          mapped[b.booking_date][b.slot_id] = true;
+        });
+        setBookings(mapped);
+      }
+    };
+    fetchBookings();
+  }, []);
 
   // Max navigable month = month of today+30
   const maxDate = new Date(today); maxDate.setDate(today.getDate() + 30);
@@ -1352,67 +1351,42 @@ useEffect(() => {
 
 
 // ==================== MOCK GALLERY DATA with timeline ====================
-const MOCK_STUDENTS = [
-  {
-    id: "s001", name: "ด.ช.กวิน สุขใจ", avatar: "กว",
-    startDate: "2024-06-01", level: "Intermediate",
-    photos: [
-      { id: 1, url: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=500&h=400&fit=crop", caption: "วันแรกที่มาเรียน! 🎉", date: "2024-06-01", tag: "เริ่มเรียน", milestone: true },
-      { id: 2, url: "https://images.unsplash.com/photo-1561557944-6e7860d1a7eb?w=500&h=400&fit=crop", caption: "ต่อหุ่นยนต์ LEGO ชิ้นแรก", date: "2024-06-15", tag: "กิจกรรม", milestone: false },
-      { id: 3, url: "https://images.unsplash.com/photo-1546776310-eef45dd6d63c?w=500&h=400&fit=crop", caption: "เขียนโปรแกรมได้แล้ว 💻", date: "2024-07-10", tag: "ความสำเร็จ", milestone: true },
-      { id: 4, url: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=500&h=400&fit=crop", caption: "ทดสอบหุ่นยนต์บนสนาม", date: "2024-08-05", tag: "กิจกรรม", milestone: false },
-      { id: 5, url: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=500&h=400&fit=crop", caption: "🏆 ได้รับรางวัลชนะเลิศ!", date: "2024-09-20", tag: "รางวัล", milestone: true },
-      { id: 6, url: "https://images.unsplash.com/photo-1535378917042-10a22c95931a?w=500&h=400&fit=crop", caption: "Open House นำเสนอผลงาน", date: "2024-11-01", tag: "กิจกรรม", milestone: false },
-    ]
-  },
-  {
-    id: "s002", name: "ด.ญ.มินตรา วงศ์ทอง", avatar: "มิ",
-    startDate: "2024-08-15", level: "Beginner",
-    photos: [
-      { id: 7, url: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=500&h=400&fit=crop&sig=1", caption: "ยินดีต้อนรับสมาชิกใหม่ 🌟", date: "2024-08-15", tag: "เริ่มเรียน", milestone: true },
-      { id: 8, url: "https://images.unsplash.com/photo-1561557944-6e7860d1a7eb?w=500&h=400&fit=crop&sig=2", caption: "เรียนรู้ Scratch กับเพื่อน", date: "2024-09-01", tag: "กิจกรรม", milestone: false },
-      { id: 9, url: "https://images.unsplash.com/photo-1546776310-eef45dd6d63c?w=500&h=400&fit=crop&sig=3", caption: "ผ่านทดสอบระดับเริ่มต้น ✅", date: "2024-10-10", tag: "ความสำเร็จ", milestone: true },
-    ]
-  },
-];
+// MOCK_STUDENTS ถูกลบ → โหลดจาก Supabase ใน GalleryPage และ AdminGalleryPanel
 
 // ==================== GALLERY PAGE ====================
 function GalleryPage({ user, setPage }) {
   const [viewMode, setViewMode] = useState("timeline"); // "timeline" | "grid"
-  //const [selectedStudent, setSelectedStudent] = useState(MOCK_STUDENTS[0]);
-  // --- useEffect สำหรับดึงข้อมูลจากฐานข้อมูล (วางต่อจาก Auth useEffect ก็ได้ค่ะ) ---
-useEffect(() => {
-  const loadAllData = async () => {
-    try {
-      // 1. ดึงข่าวสาร
-      const { data: newsData } = await supabase.from('news').select('*').order('created_at', { ascending: false });
-      if (newsData) setNews(newsData);
-
-      // 2. ดึงข้อมูลการจอง (ถ้าเป็น Admin ให้ดึงทั้งหมด ถ้าเป็น User ให้ดึงเฉพาะของตัวเอง)
-      const { data: bookingsData } = await supabase.from('bookings').select('*');
-      if (bookingsData) setBookings(bookingsData);
-
-      // 3. ดึงรูปภาพใน Gallery
-      const { data: photosData } = await supabase.from('photos').select('*');
-      if (photosData) setGallery(photosData);
-
-    } catch (error) {
-      console.error("Error loading data:", error);
-    }
-  };
-
-  loadAllData();
-}, [user]); // ใส่ [user] เพื่อให้มันโหลดใหม่ทุกครั้งที่มีการ Login/Logout
-  
-  
+  const [students, setStudents] = useState([]);
+  const [selectedStudent, setSelectedStudent] = useState(null);
   const [lightbox, setLightbox] = useState(null);
   const [filterTag, setFilterTag] = useState("ทั้งหมด");
 
+  // โหลด students + photos จาก Supabase
+  useEffect(() => {
+    const fetchStudents = async () => {
+      const { data } = await supabase
+        .from('students')
+        .select('*, photos(*)')
+        .order('start_date', { ascending: true });
+      if (data && data.length > 0) {
+        setStudents(data);
+        // ถ้าเป็น admin ดูทุกคน / student ดูของตัวเอง
+        if (user?.role === 'admin' || user?.role === 'super_admin') {
+          setSelectedStudent(data[0]);
+        } else {
+          const mine = data.find(s => s.user_id === user?.id);
+          setSelectedStudent(mine || data[0]);
+        }
+      }
+    };
+    fetchStudents();
+  }, [user]);
+
   const allTags = ["ทั้งหมด", "เริ่มเรียน", "กิจกรรม", "ความสำเร็จ", "รางวัล"];
 
-  const filteredPhotos = (selectedStudent && selectedStudent.photos).filter(p =>
+  const filteredPhotos = (selectedStudent?.photos || []).filter(p =>
     filterTag === "ทั้งหมด" || p.tag === filterTag
-  ) || [];
+  );
 
   // คำนวณระยะเวลาที่เรียนมา
   const getDuration = (start) => {
@@ -1455,7 +1429,7 @@ useEffect(() => {
           <div style={{ marginBottom: 28 }}>
             <div style={{ fontFamily: "'Kanit', sans-serif", fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 10, letterSpacing: 1 }}>เลือกนักเรียน</div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              {MOCK_STUDENTS.map(s => (
+              {students.map(s => (
                 <button key={s.id} onClick={() => setSelectedStudent(s)} style={{
                   background: (selectedStudent && selectedStudent.id) === s.id ? "linear-gradient(135deg,#FF8C00,#FFD700)" : "rgba(255,255,255,0.05)",
                   border: "1px solid " + ((selectedStudent && selectedStudent.id) === s.id ? "transparent" : "rgba(255,255,255,0.1)"),
@@ -2043,32 +2017,21 @@ const handleRegister = async (e) => {
 
 // ==================== ADMIN GALLERY PANEL ====================
 function AdminGalleryPanel() {
-  // const [students, setStudents] = useState(MOCK_STUDENTS);
-  // --- useEffect สำหรับดึงข้อมูลจากฐานข้อมูล (วางต่อจาก Auth useEffect ก็ได้ค่ะ) ---
-useEffect(() => {
-  const loadAllData = async () => {
-    try {
-      // 1. ดึงข่าวสาร
-      const { data: newsData } = await supabase.from('news').select('*').order('created_at', { ascending: false });
-      if (newsData) setNews(newsData);
+  const [students, setStudents] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
 
-      // 2. ดึงข้อมูลการจอง (ถ้าเป็น Admin ให้ดึงทั้งหมด ถ้าเป็น User ให้ดึงเฉพาะของตัวเอง)
-      const { data: bookingsData } = await supabase.from('bookings').select('*');
-      if (bookingsData) setBookings(bookingsData);
-
-      // 3. ดึงรูปภาพใน Gallery
-      const { data: photosData } = await supabase.from('photos').select('*');
-      if (photosData) setGallery(photosData);
-
-    } catch (error) {
-      console.error("Error loading data:", error);
+  const fetchStudents = async () => {
+    const { data } = await supabase
+      .from('students')
+      .select('*, photos(*)')
+      .order('start_date', { ascending: true });
+    if (data && data.length > 0) {
+      setStudents(data);
+      if (!selectedId) setSelectedId(data[0].id);
     }
   };
 
-  loadAllData();
-}, [user]); // ใส่ [user] เพื่อให้มันโหลดใหม่ทุกครั้งที่มีการ Login/Logout
-  
-  const [selectedId, setSelectedId] = useState(MOCK_STUDENTS[0].id);
+  useEffect(() => { fetchStudents(); }, []);
   const [uploadForm, setUploadForm] = useState({ caption: "", tag: "กิจกรรม", date: new Date().toISOString().split("T")[0], milestone: false, url: "" });
   const [showUpload, setShowUpload] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -2077,21 +2040,21 @@ useEffect(() => {
   const selected = students.find(s => s.id === selectedId);
   const tagColor = { "เริ่มเรียน": "#4ECDC4", "กิจกรรม": "#FFD700", "ความสำเร็จ": "#6BCB77", "รางวัล": "#FF8C00" };
 
-  const handleAddPhoto = () => {
-    if (!uploadForm.caption) return;
-    const newPhoto = {
-      id: Date.now(),
+  const handleAddPhoto = async () => {
+    if (!uploadForm.caption || !selectedId) return;
+    const { error } = await supabase.from('photos').insert({
+      student_id: selectedId,
       url: uploadForm.url || `https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=500&h=400&fit=crop&sig=${Date.now()}`,
       caption: uploadForm.caption,
-      date: uploadForm.date,
+      photo_date: uploadForm.date,
       tag: uploadForm.tag,
-      milestone: uploadForm.milestone
-    };
-    setStudents(prev => prev.map(s =>
-      s.id === selectedId ? { ...s, photos: [...s.photos, newPhoto].sort((a, b) => a.date.localeCompare(b.date)) } : s
-    ));
-    setUploadForm({ caption: "", tag: "กิจกรรม", date: new Date().toISOString().split("T")[0], milestone: false, url: "" });
-    setShowUpload(false);
+      milestone: uploadForm.milestone,
+    });
+    if (!error) {
+      await fetchStudents();
+      setUploadForm({ caption: "", tag: "กิจกรรม", date: new Date().toISOString().split("T")[0], milestone: false, url: "" });
+      setShowUpload(false);
+    }
   };
 
   const handleDelete = (photoId) => {
@@ -2364,42 +2327,15 @@ useEffect(() => {
 
 
 
-const MOCK_BOOKINGS_ADMIN = [
-  { id: "b001", studentName: "ด.ช.กวิน สุขใจ", parentPhone: "086-123-4567", date: "2026-02-26", slot: "รอบเช้า 1", slotTime: "08:30–10:30", type: "regular", status: "confirmed", assignedTeacher: "t001", income: 2000 },
-  { id: "b002", studentName: "ด.ญ.มินตรา วงศ์ทอง", parentPhone: "081-987-6543", date: "2026-02-26", slot: "รอบบ่าย 1", slotTime: "13:00–15:00", type: "regular", status: "pending", assignedTeacher: null, income: 2000 },
-  { id: "b003", studentName: "ด.ช.ปัณณ์ อัจฉริยะ", parentPhone: "089-555-1234", date: "2026-02-27", slot: "รอบเช้า 2", slotTime: "10:30–12:30", type: "regular", status: "confirmed", assignedTeacher: "t002", income: 2000 },
-  { id: "b004", studentName: "ด.ญ.แพรทอง สวรรค์", parentPhone: "085-444-3333", date: "2026-02-28", slot: "รอบบ่าย 2", slotTime: "15:00–17:00", type: "trial", status: "pending", assignedTeacher: null, income: 0 },
-  { id: "b005", studentName: "ด.ช.ณัฐ พัฒนา", parentPhone: "083-222-1111", date: "2026-03-01", slot: "รอบเช้า 1", slotTime: "08:30–10:30", type: "regular", status: "confirmed", assignedTeacher: "t001", income: 2000 },
-  { id: "b006", studentName: "ด.ญ.ปวีณ์ ชาญฉลาด", parentPhone: "087-333-4444", date: "2026-03-02", slot: "รอบเช้า 1", slotTime: "08:30–09:30", type: "trial", status: "pending", assignedTeacher: null, income: 0 },
-];
+// MOCK_BOOKINGS_ADMIN ถูกลบ → โหลดจาก Supabase ใน BookingsPanel
 
-const MOCK_USERS_ADMIN = [
-  { id: "u001", name: "ผู้ปกครอง ก", email: "parent1@gmail.com", role: "student", createdAt: "2024-06-01" },
-  { id: "u002", name: "ผู้ปกครอง ข", email: "parent2@gmail.com", role: "student", createdAt: "2024-08-15" },
-  { id: "u003", name: "ครูสมชาย ใจดี", email: "teacher1@baanbot.com", role: "teacher", createdAt: "2024-01-10" },
-  { id: "u004", name: "Admin BaanBot", email: "admin@baanbot.com", role: "admin", createdAt: "2023-12-01" },
-];
+// MOCK_USERS_ADMIN ถูกลบ → โหลดจาก Supabase ใน UsersPanel
 
 // ── Transaction categories ──
 const TX_INCOME_CATS  = ["คอร์สเรียนปกติ","คอร์สทดลองเรียน","ค่าอุปกรณ์นักเรียน","ค่าแข่งขัน","ทุนสนับสนุน","อื่นๆ (รายรับ)"];
 const TX_EXPENSE_CATS = ["ค่าสอน","ค่าเช่าสถานที่","ค่าอุปกรณ์/วัสดุ","ค่าสาธารณูปโภค","ค่าการตลาด","ค่าซ่อมบำรุง","อื่นๆ (รายจ่าย)"];
 
-let MOCK_TRANSACTIONS = [
-  { id: "tr001", month: "2026-01", type: "income",  category: "คอร์สเรียนปกติ",   desc: "คอร์สเรียน - ด.ช.กวิน",           amount: 2000, bookingId: "b001" },
-  { id: "tr002", month: "2026-01", type: "income",  category: "คอร์สเรียนปกติ",   desc: "คอร์สเรียน - ด.ญ.มินตรา",         amount: 2000, bookingId: "b003" },
-  { id: "tr003", month: "2026-01", type: "expense", category: "ค่าสอน",            desc: "ค่าสอน ครูสมชาย (12 ชม.)",         amount: 600,  teacherId: "t001" },
-  { id: "tr004", month: "2026-01", type: "expense", category: "ค่าสอน",            desc: "ค่าสอน ครูนภา (8 ชม.)",           amount: 400,  teacherId: "t002" },
-  { id: "tr010", month: "2026-01", type: "expense", category: "ค่าเช่าสถานที่",    desc: "ค่าเช่ารายเดือน ม.ค.",             amount: 3000 },
-  { id: "tr011", month: "2026-01", type: "expense", category: "ค่าอุปกรณ์/วัสดุ", desc: "ซื้อ LEGO Spike Prime ชุดใหม่",     amount: 4500 },
-  { id: "tr005", month: "2026-02", type: "income",  category: "คอร์สเรียนปกติ",   desc: "คอร์สเรียน - ด.ช.ณัฐ",            amount: 2000, bookingId: "b005" },
-  { id: "tr006", month: "2026-02", type: "income",  category: "คอร์สเรียนปกติ",   desc: "คอร์สเรียน - ด.ช.ปัณณ์",          amount: 2000, bookingId: "b003" },
-  { id: "tr012", month: "2026-02", type: "income",  category: "ค่าแข่งขัน",        desc: "ค่าสมัครแข่งขันหุ่นยนต์ภูมิภาค", amount: 1500 },
-  { id: "tr007", month: "2026-02", type: "expense", category: "ค่าสอน",            desc: "ค่าสอน ครูสมชาย (10 ชม.)",         amount: 500,  teacherId: "t001" },
-  { id: "tr008", month: "2026-02", type: "expense", category: "ค่าสอน",            desc: "ค่าสอน ครูนภา (6 ชม.)",           amount: 300,  teacherId: "t002" },
-  { id: "tr009", month: "2026-02", type: "expense", category: "ค่าสอน",            desc: "ค่าสอน ครูวิชัย (4 ชม.)",         amount: 200,  teacherId: "t003" },
-  { id: "tr013", month: "2026-02", type: "expense", category: "ค่าเช่าสถานที่",    desc: "ค่าเช่ารายเดือน ก.พ.",             amount: 3000 },
-  { id: "tr014", month: "2026-02", type: "expense", category: "ค่าสาธารณูปโภค",   desc: "ค่าไฟฟ้า + อินเทอร์เน็ต ก.พ.",    amount: 850 },
-];
+// MOCK_TRANSACTIONS ถูกลบ → โหลดจาก Supabase ใน FinancialDashboard
 
 // ==================== HELPER: Role display ====================
 const ROLE_LABELS = {
@@ -2413,14 +2349,31 @@ const ROLE_LABELS = {
 
 // ── 1. Dashboard Panel ──
 function DashboardPanel({ isSuperAdmin }) {
-  const totalIncome = MOCK_TRANSACTIONS.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
-  const totalExpense = MOCK_TRANSACTIONS.filter(t => t.type === "expense").reduce((s, t) => s + t.amount, 0);
-  const stats = [
-    { icon: "📅", label: "การจองวันนี้", val: "3 รายการ", color: "#FF8C00" },
-    { icon: "👥", label: "สมาชิกทั้งหมด", val: "47 คน", color: "#4ECDC4" },
-    { icon: "🎓", label: "ผู้สอนประจำ", val: `${MOCK_TEACHERS.length} คน`, color: "#FFD700" },
-    { icon: "🖼️", label: "ภาพในคลัง", val: "234 ภาพ", color: "#FF4757" },
-  ];
+  const [stats, setStats] = useState([
+    { icon: "📅", label: "การจองวันนี้", val: "...", color: "#FF8C00" },
+    { icon: "👥", label: "สมาชิกทั้งหมด", val: "...", color: "#4ECDC4" },
+    { icon: "🎓", label: "ผู้สอนประจำ", val: "...", color: "#FFD700" },
+    { icon: "🖼️", label: "ภาพในคลัง", val: "...", color: "#FF4757" },
+  ]);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const [{ count: bookToday }, { count: members }, { count: teachers }, { count: photos }] = await Promise.all([
+        supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('booking_date', today).eq('status', 'confirmed'),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }),
+        supabase.from('teachers').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+        supabase.from('photos').select('*', { count: 'exact', head: true }),
+      ]);
+      setStats([
+        { icon: "📅", label: "การจองวันนี้", val: `${bookToday || 0} รายการ`, color: "#FF8C00" },
+        { icon: "👥", label: "สมาชิกทั้งหมด", val: `${members || 0} คน`, color: "#4ECDC4" },
+        { icon: "🎓", label: "ผู้สอนประจำ", val: `${teachers || 0} คน`, color: "#FFD700" },
+        { icon: "🖼️", label: "ภาพในคลัง", val: `${photos || 0} ภาพ`, color: "#FF4757" },
+      ]);
+    };
+    fetchStats();
+  }, []);
   const CS = { fontFamily: "'Kanit', sans-serif" };
   return (
     <div>
@@ -2468,36 +2421,40 @@ function DashboardPanel({ isSuperAdmin }) {
 
 // ── 2. Bookings + Assign Teacher Panel ──
 function BookingsPanel({ isSuperAdmin }) {
-  //const [bookings, setBookings] = useState(MOCK_BOOKINGS_ADMIN);
-    const [teachers, setTeachers] = useState([]);
+  const [teachers, setTeachers] = useState([]);
   const [adminBookings, setAdminBookings] = useState([]);
- 
-useEffect(() => {
-  const fetchData = async () => {
-    const { data: t } = await supabase.from('teachers').select('*').eq('status','active');
-    const { data: b } = await supabase.from('bookings')
-      .select('*, profiles(name)')
-      .gte('booking_date', new Date().toISOString().split('T')[0])
-      .order('booking_date');
-    if (t) setTeachers(t);
-    if (b) setAdminBookings(b);
-  };
-  fetchData();
-}, []);
-
-  
-  const [assignModal, setAssignModal] = useState(null); // booking id
-  const [filter, setFilter] = useState("all"); // all | pending | confirmed
+  const [assignModal, setAssignModal] = useState(null);
+  const [filter, setFilter] = useState("all");
   const CS = { fontFamily: "'Kanit', sans-serif" };
 
-  const handleAssign = (bookingId, teacherId) => {
-    setBookings(prev => prev.map(b =>
-      b.id === bookingId ? { ...b, assignedTeacher: teacherId, status: "confirmed" } : b
-    ));
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: t } = await supabase.from('teachers').select('*').eq('status', 'active');
+      const { data: b } = await supabase
+        .from('bookings')
+        .select('id, booking_date, slot_id, booking_type, name, phone, status, assigned_teacher')
+        .gte('booking_date', new Date().toISOString().split('T')[0])
+        .order('booking_date');
+      if (t) setTeachers(t);
+      if (b) setAdminBookings(b);
+    };
+    fetchData();
+  }, []);
+
+  const handleAssign = async (bookingId, teacherId) => {
+    const { error } = await supabase
+      .from('bookings')
+      .update({ assigned_teacher: teacherId, status: 'confirmed' })
+      .eq('id', bookingId);
+    if (!error) {
+      setAdminBookings(prev => prev.map(b =>
+        b.id === bookingId ? { ...b, assigned_teacher: teacherId, status: 'confirmed' } : b
+      ));
+    }
     setAssignModal(null);
   };
 
-  const filtered = bookings.filter(b => filter === "all" || b.status === filter);
+  const filtered = adminBookings.filter(b => filter === "all" || b.status === filter);
 
   return (
     <div>
@@ -2510,7 +2467,7 @@ useEffect(() => {
             color: filter === id ? "#0a0c14" : "#aaa",
             padding: "8px 18px", borderRadius: 10, cursor: "pointer",
             ...CS, fontWeight: filter === id ? 700 : 400, fontSize: 13
-          }}>{label} {filter === id ? "" : `(${bookings.filter(b => id === "all" || b.status === id).length})`}</button>
+          }}>{label} {filter === id ? "" : `(${adminBookings.filter(b => id === "all" || b.status === id).length})`}</button>
         ); })}
       </div>
 
@@ -2520,7 +2477,7 @@ useEffect(() => {
           {isSuperAdmin && <div style={{ ...CS, fontSize: 12, color: "rgba(255,140,0,0.8)" }}>👑 Super Admin — มองเห็นข้อมูลทั้งหมด</div>}
         </div>
         {filtered.map(b => {
-          const teacher = MOCK_TEACHERS.find(t => t.id === b.assignedTeacher);
+          const teacher = teachers.find(t => t.id === b.assigned_teacher);
           return (
             <div key={b.id} style={{
               padding: "16px 22px", borderBottom: "1px solid rgba(255,255,255,0.04)",
@@ -2586,7 +2543,7 @@ useEffect(() => {
             <div style={{ ...CS, fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 22 }}>
               {(bookings.find(b => b.id === assignModal) || {}).studentName} — {(bookings.find(b => b.id === assignModal) || {}).slot}
             </div>
-            {MOCK_TEACHERS.map(t => (
+            {teachers.map(t => (
               <button key={t.id} onClick={() => handleAssign(assignModal, t.id)} style={{
                 width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)",
                 borderRadius: 12, padding: "14px 18px", marginBottom: 10, cursor: "pointer",
@@ -2619,38 +2576,28 @@ useEffect(() => {
 
 // ── 3. Teacher Management Panel ──
 function TeachersPanel({ isSuperAdmin }) {
-  //const [teachers, setTeachers] = useState(MOCK_TEACHERS);
-
   const [teachers, setTeachers] = useState([]);
-  const [adminBookings, setAdminBookings] = useState([]);
- 
-useEffect(() => {
-  const fetchData = async () => {
-    const { data: t } = await supabase.from('teachers').select('*').eq('status','active');
-    const { data: b } = await supabase.from('bookings')
-      .select('*, profiles(name)')
-      .gte('booking_date', new Date().toISOString().split('T')[0])
-      .order('booking_date');
-    if (t) setTeachers(t);
-    if (b) setAdminBookings(b);
-  };
-  fetchData();
-}, []);
-
- 
-
-
-  
   const [showAdd, setShowAdd] = useState(false);
   const [newTeacher, setNewTeacher] = useState({ name: "", phone: "", email: "", specialty: "" });
   const CS = { fontFamily: "'Kanit', sans-serif" };
   const HOURLY_RATE = 50;
 
-  const handleAdd = () => {
+  const fetchTeachers = async () => {
+    const { data } = await supabase.from('teachers').select('*').order('name');
+    if (data) setTeachers(data);
+  };
+  useEffect(() => { fetchTeachers(); }, []);
+
+  const handleAdd = async () => {
     if (!newTeacher.name) return;
-    setTeachers(prev => [...prev, { ...newTeacher, id: `t${Date.now()}`, hoursThisMonth: 0, status: "active" }]);
-    setNewTeacher({ name: "", phone: "", email: "", specialty: "" });
-    setShowAdd(false);
+    const { error } = await supabase.from('teachers').insert({
+      ...newTeacher, hours_month: 0, status: "active"
+    });
+    if (!error) {
+      await fetchTeachers();
+      setNewTeacher({ name: "", phone: "", email: "", specialty: "" });
+      setShowAdd(false);
+    }
   };
 
   const iS = { width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 9, padding: "10px 14px", color: "#fff", ...CS, fontSize: 13, outline: "none", boxSizing: "border-box" };
@@ -2747,11 +2694,22 @@ useEffect(() => {
 
 // ── 4. User Management + Password Reset Panel ──
 function UsersPanel() {
-  const [users, setUsers] = useState(MOCK_USERS_ADMIN);
+  const [users, setUsers] = useState([]);
   const [search, setSearch] = useState("");
   const [resetModal, setResetModal] = useState(null);
   const [resetDone, setResetDone] = useState(null);
   const CS = { fontFamily: "'Kanit', sans-serif" };
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, name, email:id, role, created_at')
+        .order('created_at', { ascending: false });
+      if (data) setUsers(data);
+    };
+    fetchUsers();
+  }, []);
 
   const filtered = users.filter(u =>
     u.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -2931,11 +2889,24 @@ function FinancialDashboard({ theme }) {
   const [selectedYear, setSelectedYear] = useState("2026");
   const [exportMsg, setExportMsg] = useState("");
 
-  // ── Manual entry state ──
+  // ── Data state ──
   const [showAddForm, setShowAddForm] = useState(false);
-  const [txList, setTxList] = useState(MOCK_TRANSACTIONS);
+  const [txList, setTxList] = useState([]);
+  const [teachers, setTeachers] = useState([]);
   const [newTx, setNewTx] = useState({ type: "income", category: TX_INCOME_CATS[0], desc: "", amount: "", month: "2026-02" });
   const [deleteId, setDeleteId] = useState(null);
+
+  const fetchTxList = async () => {
+    const { data } = await supabase
+      .from('transactions')
+      .select('*, teachers(name)')
+      .order('created_at', { ascending: false });
+    if (data) setTxList(data.map(t => ({ ...t, month: t.tx_month })));
+  };
+  useEffect(() => {
+    fetchTxList();
+    supabase.from('teachers').select('*').then(({ data }) => { if (data) setTeachers(data); });
+  }, []);
 
   // ── helpers ──
   const thMonth = (m) => {
@@ -2951,21 +2922,26 @@ function FinancialDashboard({ theme }) {
   const thYear = (y) => `ปี ${parseInt(y) + 543} (${y})`;
 
   // ── Add transaction ──
-  const handleAddTx = () => {
+  const handleAddTx = async () => {
     if (!newTx.desc.trim() || !newTx.amount || parseFloat(newTx.amount) <= 0) return;
-    const id = "tx" + Date.now();
-    const entry = { id, month: newTx.month, type: newTx.type, category: newTx.category, desc: newTx.desc.trim(), amount: parseFloat(newTx.amount) };
-    MOCK_TRANSACTIONS.push(entry);
-    setTxList([...MOCK_TRANSACTIONS]);
-    setNewTx({ type: "income", category: TX_INCOME_CATS[0], desc: "", amount: "", month: selectedMonth });
-    setShowAddForm(false);
-    setExportMsg("✅ บันทึกรายการสำเร็จ");
-    setTimeout(() => setExportMsg(""), 3000);
+    const { error } = await supabase.from('transactions').insert({
+      tx_month: newTx.month,
+      type: newTx.type,
+      category: newTx.category,
+      description: newTx.desc.trim(),
+      amount: parseFloat(newTx.amount),
+    });
+    if (!error) {
+      await fetchTxList();
+      setNewTx({ type: "income", category: TX_INCOME_CATS[0], desc: "", amount: "", month: selectedMonth });
+      setShowAddForm(false);
+      setExportMsg("✅ บันทึกรายการสำเร็จ");
+      setTimeout(() => setExportMsg(""), 3000);
+    }
   };
-  const handleDeleteTx = (id) => {
-    const idx = MOCK_TRANSACTIONS.findIndex(t => t.id === id);
-    if (idx >= 0) MOCK_TRANSACTIONS.splice(idx, 1);
-    setTxList([...MOCK_TRANSACTIONS]);
+  const handleDeleteTx = async (id) => {
+    await supabase.from('transactions').delete().eq('id', id);
+    await fetchTxList();
     setDeleteId(null);
   };
 
@@ -2990,7 +2966,7 @@ function FinancialDashboard({ theme }) {
   })).filter(c => c.amount > 0);
 
   // Teacher summary
-  const teacherList = MOCK_TEACHERS.map(t => {
+  const teacherList = teachers.map(t => {
     const pay = txList.filter(tx => tx.teacherId === t.id && (isMonth ? tx.month === selectedMonth : tx.month.startsWith(selectedYear))).reduce((s,tx)=>s+tx.amount,0);
     return { ...t, pay, hours: pay/50 };
   }).filter(t => t.pay > 0);
@@ -3456,9 +3432,27 @@ const calcXP = (level) => Math.round(500 * Math.log2(level + 1));
 // ==================== SKILL TREE PAGE ====================
 function SkillTreePage({ user, setPage }) {
   const [selectedNode, setSelectedNode] = useState(null);
-  const [userXP] = useState(1200);
+  const [userXP, setUserXP] = useState(0);
+  const [userSkills, setUserSkills] = useState({});
   const [animIn, setAnimIn] = useState(false);
   useEffect(() => { setTimeout(() => setAnimIn(true), 80); }, []);
+  useEffect(() => {
+    if (!user?.id) return;
+    const fetchSkillProgress = async () => {
+      const { data } = await supabase
+        .from('skill_progress')
+        .select('skill_id, status, xp_earned')
+        .eq('user_id', user.id);
+      if (data) {
+        const map = {};
+        let totalXP = 0;
+        data.forEach(s => { map[s.skill_id] = s; totalXP += s.xp_earned || 0; });
+        setUserSkills(map);
+        setUserXP(totalXP);
+      }
+    };
+    fetchSkillProgress();
+  }, [user]);
 
   const userLevel = Math.floor(userXP / 500) + 1;
   const nextLevelXP = calcXP(userLevel);
@@ -3724,46 +3718,22 @@ function SkillTreePage({ user, setPage }) {
 }
 
 // ==================== TOURNAMENT HUB PAGE ====================
-const TOURNAMENTS = [
-  {
-    id: 1, name: "VEX Robotics Thailand National 2025–2026",
-    org: "VEX / ALL Robotics", icon: "🏆",
-    target: "ปฐม–มัธยม (VEX IQ / V5)", color: "#F99D07",
-    date: "มกราคม 2025", venue: "PIM แจ้งวัฒนะ, กรุงเทพฯ",
-    status: "past", teams: 126, prize: "ตัวแทนไปแข่ง World Championship สหรัฐฯ",
-    desc: "การแข่งขันหุ่นยนต์ระดับชาติที่ยิ่งใหญ่ที่สุด รวม 126 ทีมจากทั่วประเทศ ผู้ชนะได้ตัวแทนไป VEX World Championship"
-  },
-  {
-    id: 2, name: "Robotics for Good Youth Challenge",
-    org: "UN-based Global Program", icon: "🌍",
-    target: "อายุ 10–18 ปี", color: "#2FD463",
-    date: "กรกฎาคม 2025", venue: "Global Final (Online + Bangkok)",
-    status: "upcoming", teams: null, prize: "ทุนการศึกษาระดับนานาชาติ",
-    desc: "โครงการหุ่นยนต์เพื่อสังคมจาก UN เปิดรับทีมเยาวชนที่ออกแบบหุ่นยนต์แก้ปัญหาสังคมจริง"
-  },
-  {
-    id: 3, name: "AI & Robotics Hackathon",
-    org: "MIT Media Lab Thailand", icon: "🤖",
-    target: "มัธยมปลาย–มหาวิทยาลัย", color: "#37B6F6",
-    date: "ธันวาคม 2025", venue: "Cloud11 กรุงเทพฯ",
-    status: "upcoming", teams: null, prize: "รางวัลเงินสด + Mentorship MIT",
-    desc: "Hackathon 48 ชั่วโมง สร้าง AI Robot ต้นแบบ วิทยากรระดับโลกจาก MIT Media Lab"
-  },
-  {
-    id: 4, name: "RAT Open – Helter Skelter",
-    org: "RAT Events Thailand", icon: "⚡",
-    target: "นักเรียนทุกระดับ (Open Platform)", color: "#882FF6",
-    date: "พฤษภาคม 2026", venue: "St Andrews Int. School กรุงเทพฯ",
-    status: "open", teams: null, prize: "Trophy + RoboCredits พิเศษ",
-    desc: "การแข่งขันเปิดรูปแบบ Open Platform ใช้หุ่นยนต์แพลตฟอร์มอะไรก็ได้ เหมาะสำหรับทีมที่มีความคิดสร้างสรรค์"
-  },
-];
-
 function TournamentHubPage({ user, setPage }) {
   const [filter, setFilter] = useState("all");
   const [selected, setSelected] = useState(null);
   const [animIn, setAnimIn] = useState(false);
+  const [tournaments, setTournaments] = useState([]);
   useEffect(() => { setTimeout(() => setAnimIn(true), 80); }, []);
+  useEffect(() => {
+    const fetchTournaments = async () => {
+      const { data } = await supabase
+        .from('tournaments')
+        .select('*')
+        .order('event_date', { ascending: true });
+      if (data) setTournaments(data);
+    };
+    fetchTournaments();
+  }, []);
 
   const statusMeta = {
     past:     { label: "ผ่านไปแล้ว", color: "rgba(255,255,255,0.3)", bg: "rgba(255,255,255,0.05)" },
@@ -3771,7 +3741,7 @@ function TournamentHubPage({ user, setPage }) {
     open:     { label: "เปิดรับสมัคร", color: "#2FD463",            bg: "rgba(47,212,99,0.1)" },
   };
 
-  const filtered = filter === "all" ? TOURNAMENTS : TOURNAMENTS.filter(t => t.status === filter);
+  const filtered = filter === "all" ? tournaments : tournaments.filter(t => t.status === filter);
 
   return (
     <div style={{ paddingTop: 80, minHeight: "100vh", background: "linear-gradient(180deg,#080d1a 0%,#0a0c14 100%)" }}>
@@ -3933,32 +3903,51 @@ function TournamentHubPage({ user, setPage }) {
 function RoboCreditPage({ user, setPage }) {
   const [copied, setCopied] = useState(false);
   const [animIn, setAnimIn] = useState(false);
-  useEffect(() => { setTimeout(() => setAnimIn(true), 80); }, []);
-
-  const userCredits = user ? 1240 : 0;
-  const referralCode = user ? "BAANBOT-" + user.name.substring(0,3).toUpperCase() + "2026" : "BAANBOT-XXXX";
-
-  const handleCopy = () => {
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const rewards = [
+  const [userCredits, setUserCredits] = useState(0);
+  const [history, setHistory] = useState([]);
+  const [rewards, setRewards] = useState([
     { icon: "🎓", name: "ส่วนลดค่าเรียน 10%", credits: 500, type: "Digital", color: "#37B6F6" },
     { icon: "🤖", name: "เซนเซอร์ Ultrasonic", credits: 800, type: "Physical", color: "#F99D07" },
     { icon: "🔌", name: "ชุด Arduino Starter Kit", credits: 1200, type: "Physical", color: "#882FF6" },
     { icon: "🏅", name: "เหรียญ Badge พิเศษ", credits: 300, type: "Digital", color: "#2FD463" },
     { icon: "📚", name: "หนังสือ Coding สำหรับเด็ก", credits: 600, type: "Physical", color: "#F99D07" },
     { icon: "🎮", name: "ต่ออายุสมาชิก 1 เดือน", credits: 1500, type: "Digital", color: "#37B6F6" },
-  ];
+  ]);
+  useEffect(() => { setTimeout(() => setAnimIn(true), 80); }, []);
+  useEffect(() => {
+    if (!user?.id) return;
+    const fetchCredits = async () => {
+      const { data: creditData } = await supabase
+        .from('robo_credits')
+        .select('balance')
+        .eq('user_id', user.id)
+        .single();
+      if (creditData) setUserCredits(creditData.balance || 0);
 
-  const history = [
-    { icon: "📅", desc: "จองคลาส LEGO EV3 - 26 ก.พ.", credits: +50, date: "26 ก.พ." },
-    { icon: "👥", desc: "แนะนำเพื่อน: น้องปิ่น", credits: +200, date: "20 ก.พ." },
-    { icon: "🏆", desc: "ผ่านด่าน Scratch Level 3", credits: +100, date: "15 ก.พ." },
-    { icon: "👥", desc: "แนะนำเพื่อน: น้องบิ๊ก", credits: +200, date: "10 ก.พ." },
-    { icon: "🎯", desc: "เช็คอินเรียน 10 ครั้งติด", credits: +150, date: "8 ก.พ." },
-  ];
+      const { data: txData } = await supabase
+        .from('credit_transactions')
+        .select('icon, description, amount, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (txData) {
+        setHistory(txData.map(t => ({
+          icon: t.icon || "⭐",
+          desc: t.description,
+          credits: t.amount,
+          date: new Date(t.created_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })
+        })));
+      }
+    };
+    fetchCredits();
+  }, [user]);
+
+  const referralCode = user ? "BAANBOT-" + user.name.substring(0,3).toUpperCase() + "2026" : "BAANBOT-XXXX";
+
+  const handleCopy = () => {
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div style={{ paddingTop: 80, minHeight: "100vh", background: "linear-gradient(180deg,#070c18 0%,#0a0c14 100%)" }}>
@@ -5023,6 +5012,71 @@ function AICopilotAdminPanel({ T, CS }) {
   );
 }
 
+// ==================== ADMIN NEWS PANEL ====================
+function AdminNewsPanel({ T, CS }) {
+  const [newsList, setNewsList] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ title: "", summary: "", tag: "", source: "", published: true });
+
+  const fetchNews = async () => {
+    const { data } = await supabase.from('news').select('*').order('created_at', { ascending: false });
+    if (data) setNewsList(data);
+  };
+  useEffect(() => { fetchNews(); }, []);
+
+  const handleAdd = async () => {
+    if (!form.title.trim()) return;
+    await supabase.from('news').insert({ ...form });
+    setForm({ title: "", summary: "", tag: "", source: "", published: true });
+    setShowForm(false);
+    await fetchNews();
+  };
+  const handleDelete = async (id) => {
+    await supabase.from('news').delete().eq('id', id);
+    await fetchNews();
+  };
+  const handleTogglePublish = async (id, published) => {
+    await supabase.from('news').update({ published: !published }).eq('id', id);
+    await fetchNews();
+  };
+
+  return (
+    <div style={{ background: T.surface, border: `1px solid ${T.surfaceBorder}`, borderRadius: 16, overflow: "hidden" }}>
+      <div style={{ padding: "16px 24px", borderBottom: `1px solid ${T.surfaceBorder}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ ...CS, fontWeight: 700, color: T.text, fontSize: 15 }}>จัดการข่าวสาร ({newsList.length})</div>
+        <button onClick={() => setShowForm(!showForm)} style={{ background: T.btnGrad, border: "none", color: T.primaryDark, padding: "8px 18px", borderRadius: 8, ...CS, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+          {showForm ? "✕ ยกเลิก" : "+ เพิ่มข่าว"}
+        </button>
+      </div>
+      {showForm && (
+        <div style={{ padding: "16px 24px", borderBottom: `1px solid ${T.surfaceBorder}`, display: "flex", flexDirection: "column", gap: 10 }}>
+          {[["title","หัวข้อข่าว *"],["summary","สรุปข่าว"],["tag","หมวดหมู่"],["source","แหล่งที่มา"]].map(([key, placeholder]) => (
+            <input key={key} value={form[key]} onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
+              placeholder={placeholder}
+              style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${T.surfaceBorder}`, borderRadius: 8, padding: "8px 12px", color: T.text, ...CS, fontSize: 13, outline: "none" }} />
+          ))}
+          <button onClick={handleAdd} style={{ background: T.btnGrad, border: "none", color: T.primaryDark, padding: "10px", borderRadius: 8, ...CS, fontWeight: 700, cursor: "pointer" }}>บันทึกข่าว</button>
+        </div>
+      )}
+      {newsList.map(n => (
+        <div key={n.id} style={{ padding: "16px 24px", borderBottom: `1px solid ${T.surfaceBorder}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ ...CS, fontWeight: 600, fontSize: 14, color: T.text, marginBottom: 4 }}>{n.title}</div>
+            <div style={{ ...CS, fontSize: 12, color: T.textMuted }}>{n.tag} • {n.source} {!n.published && "• 🔒 ซ่อนอยู่"}</div>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => handleTogglePublish(n.id, n.published)} style={{ background: n.published ? "rgba(47,212,99,0.1)" : "rgba(255,255,255,0.05)", border: `1px solid ${n.published ? "rgba(47,212,99,0.3)" : T.surfaceBorder}`, color: n.published ? "#2FD463" : T.textMuted, padding: "5px 12px", borderRadius: 8, ...CS, fontSize: 12, cursor: "pointer" }}>{n.published ? "เผยแพร่" : "ซ่อน"}</button>
+            <button onClick={() => handleDelete(n.id)} style={{ background: "rgba(255,50,50,0.1)", border: "1px solid rgba(255,50,50,0.2)", color: "#ff6b6b", padding: "5px 12px", borderRadius: 8, ...CS, fontSize: 12, cursor: "pointer" }}>ลบ</button>
+          </div>
+        </div>
+      ))}
+      {newsList.length === 0 && (
+        <div style={{ padding: "32px", textAlign: "center", ...CS, color: T.textMuted, fontSize: 14 }}>ยังไม่มีข่าว — กด "+ เพิ่มข่าว" เพื่อเริ่มต้น</div>
+      )}
+    </div>
+  );
+}
+
 // ==================== ADMIN PAGE ====================
 function AdminPage({ user, theme, themeId, setThemeId }) {
   const isSuperAdmin = user && user.role === "super_admin";
@@ -5110,26 +5164,7 @@ function AdminPage({ user, theme, themeId, setThemeId }) {
         {tab === "bookings"  && <BookingsPanel isSuperAdmin={isSuperAdmin} theme={T} />}
         {tab === "teachers"  && <TeachersPanel isSuperAdmin={isSuperAdmin} theme={T} />}
         {tab === "users"     && <UsersPanel theme={T} />}
-        {tab === "news"      && (
-          <div style={{ background: T.surface, border: `1px solid ${T.surfaceBorder}`, borderRadius: 16, overflow: "hidden" }}>
-            <div style={{ padding: "16px 24px", borderBottom: `1px solid ${T.surfaceBorder}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ ...CS, fontWeight: 700, color: T.text, fontSize: 15 }}>จัดการข่าวสาร</div>
-              <button style={{ background: T.btnGrad, border: "none", color: T.primaryDark, padding: "8px 18px", borderRadius: 8, ...CS, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>+ เพิ่มข่าว</button>
-            </div>
-            {MOCK_NEWS.map(n => (
-              <div key={n.id} style={{ padding: "16px 24px", borderBottom: `1px solid ${T.surfaceBorder}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ ...CS, fontWeight: 600, fontSize: 14, color: T.text, marginBottom: 4 }}>{n.title}</div>
-                  <div style={{ ...CS, fontSize: 12, color: T.textMuted }}>{n.date} • {n.tag}</div>
-                </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button style={{ background: `${T.primary}18`, border: `1px solid ${T.primary}40`, color: T.primary, padding: "5px 12px", borderRadius: 8, ...CS, fontSize: 12, cursor: "pointer" }}>แก้ไข</button>
-                  <button style={{ background: "rgba(255,50,50,0.1)", border: "1px solid rgba(255,50,50,0.2)", color: "#ff6b6b", padding: "5px 12px", borderRadius: 8, ...CS, fontSize: 12, cursor: "pointer" }}>ลบ</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {tab === "news"      && <AdminNewsPanel T={T} CS={CS} />}
         {tab === "gallery"   && <AdminGalleryPanel theme={T} />}
         {tab === "skilltree" && <SkillTreeAdminPanel T={T} CS={CS} />}
         {tab === "tourney"   && <TournamentAdminPanel T={T} CS={CS} />}
