@@ -1,5 +1,5 @@
 "use client";
-
+import { supabase } from '../lib/supabase';
 import { useState, useEffect, useRef } from "react";
 
 // ==================== LOGO SVG COMPONENT ====================
@@ -1650,61 +1650,60 @@ function LoginPage({ setUser, setPage }) {
   const [registerSuccess, setRegisterSuccess] = useState(false);
 
   // ── จำลอง Google OAuth popup ──
-  const handleGoogleLogin = async () => {
-    setGoogleLoading(true);
-    setError("");
-    await new Promise(r => setTimeout(r, 1400));
-    // จำลอง: Google ส่งข้อมูลกลับมา
-    const mockGoogleUser = {
-      name: "ผู้ปกครอง Google",
-      email: "parent@gmail.com",
-      avatar: "https://lh3.googleusercontent.com/a/default-user",
-      role: "student",
-      provider: "google",
-    };
-    setUser(mockGoogleUser);
-    setGoogleLoading(false);
-    setPage("home");
-  };
+const handleGoogleLogin = async () => {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: window.location.origin
+    }
+  });
+  if (error) alert("Google Login Error: " + error.message);
+};
 
   // ── Login ด้วย email/password ──
-  const handleLogin = async () => {
-    setError("");
-    if (!form.email || !form.password) { setError("กรุณากรอกอีเมลและรหัสผ่าน"); return; }
-    setLoading(true);
-    await new Promise(r => setTimeout(r, 900));
-    const e = form.email.toLowerCase();
-    if (e.includes("superadmin") || e.includes("super_admin")) {
-      setUser({ name: "Super Admin", role: "super_admin", email: form.email, provider: "email" });
-    } else if (e.includes("admin")) {
-      setUser({ name: "Admin BaanBot", role: "admin", email: form.email, provider: "email" });
-    } else if (e.includes("teacher") || e.includes("ครู")) {
-      setUser({ name: "ครู" + form.email.split("@")[0], role: "teacher", email: form.email, provider: "email" });
-    } else {
-      setUser({ name: form.email.split("@")[0], role: "student", email: form.email, provider: "email" });
-    }
-    setLoading(false);
-    setPage("home");
-  };
+ const handleLogin = async (e) => {
+  e.preventDefault();
+  setAuthLoading(true);
+  
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: loginData.email,
+    password: loginData.password
+  });
+
+  if (error) {
+    alert("ล็อกอินไม่สำเร็จ: " + error.message);
+  } else {
+    // ระบบจะดึงข้อมูล User และสลับหน้าให้อัตโนมัติผ่าน useEffect
+    setAuthModal(false);
+  }
+  setAuthLoading(false);
+};
 
   // ── สมัครสมาชิก ──
-  const handleRegister = async () => {
-    setError("");
-    if (!form.name || !form.email || !form.password || !form.childName || !form.phone) {
-      setError("กรุณากรอกข้อมูลให้ครบทุกช่อง"); return;
+const handleRegister = async (e) => {
+  e.preventDefault();
+  setAuthLoading(true);
+  
+  // 1. สมัครสมาชิกในระบบ Auth ของ Supabase
+  const { data, error } = await supabase.auth.signUp({
+    email: regData.email,
+    password: regData.password,
+    options: {
+      data: {
+        full_name: regData.name,
+        phone: regData.phone
+      }
     }
-    if (form.password.length < 8) { setError("รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร"); return; }
-    if (form.password !== form.confirmPassword) { setError("รหัสผ่านไม่ตรงกัน"); return; }
-    setLoading(true);
-    await new Promise(r => setTimeout(r, 1000));
-    setLoading(false);
-    setRegisterSuccess(true);
-    setTimeout(() => {
-      setRegisterSuccess(false);
-      setTab("login");
-      setForm(p => ({ ...p, password: "", confirmPassword: "" }));
-    }, 2500);
-  };
+  });
+
+  if (error) {
+    alert("สมัครสมาชิกไม่สำเร็จ: " + error.message);
+  } else {
+    alert("สมัครสมาชิกสำเร็จ! กรุณาล็อกอินเข้าใช้งาน");
+    setAuthMode('login');
+  }
+  setAuthLoading(false);
+};
 
   const inputStyle = {
     width: "100%", background: "rgba(255,255,255,0.06)",
