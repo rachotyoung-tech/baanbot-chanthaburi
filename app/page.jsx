@@ -2,6 +2,8 @@
 import { supabase } from '../lib/supabase';
 import { useState, useEffect, useRef } from "react";
 
+export const dynamic = "force-dynamic";
+
 // ==================== LOGO SVG COMPONENT ====================
 function BaanBotLogo({ width = 260, style = {} }) {
   const height = Math.round(width * 200 / 520);
