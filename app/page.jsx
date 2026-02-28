@@ -1971,7 +1971,7 @@ function LoginPage({ setUser, setPage }) {
             background: "rgba(255,140,0,0.04)", borderRadius: 8,
             fontFamily: "'Kanit', sans-serif", fontSize: 11, color: "rgba(255,255,255,0.3)", lineHeight: 1.7
           }}>
-            💡 ทดสอบ: "superadmin@..." = Super Admin | "admin@..." = Admin | "teacher@..." = Teacher | อื่นๆ = Student
+            
           </div>
         </div>
       </div>
