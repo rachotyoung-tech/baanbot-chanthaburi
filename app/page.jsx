@@ -756,30 +756,46 @@ function BookingPage({ user, setPage }) {
     }
   };
 
-  const handleBook = () => {
-    if (!form.name || !form.phone) return;
-    if (bookingMode === "regular") {
-      setBookings(prev => ({
-        ...prev,
-        [selectedDate]: { ...(prev[selectedDate] || {}), [selectedSlot]: { type: "regular", name: form.name } }
-      }));
-      setSuccess("regular");
-    } else {
-      if (!selectedTrialHour) return;
-      setTrialBookings(prev => ({
-        ...prev,
-        [selectedDate]: {
-          ...(prev[selectedDate] || {}),
-          [`${selectedSlot}_${selectedTrialHour}`]: { type: "trial", name: form.name }
-        }
-      }));
-      setSuccess("trial");
+const handleBook = async () => {
+  if (!form.name || !form.phone) return;
+  const { error } = await supabase.from('bookings').insert({
+    booking_date: selectedDate,
+    slot_id: selectedSlot,
+    booking_type: bookingMode,
+    trial_hour: bookingMode === 'trial' ? selectedTrialHour : null,
+    name: form.name, phone: form.phone,
+    child_age: form.childAge, note: form.note,
+    user_id: user?.id || null,
+  });
+  if (error) { alert('เกิดข้อผิดพลาด: ' + error.message); return; }
+  if (bookingMode === 'regular') {
+    setBookings(prev => ({
+      ...prev, [selectedDate]: { ...(prev[selectedDate]||{}), [selectedSlot]: true }
+    }));
+  }
+  setSuccess(bookingMode);
+  setSelectedSlot(null); setSelectedTrialHour(null);
+  setForm({ name:'', phone:'', childAge:'', note:'' });
+  setTimeout(() => setSuccess(null), 5000);
+};
+ 
+// โหลด bookings ที่ต้นของ BookingPage (useEffect)
+useEffect(() => {
+  const fetchBookings = async () => {
+    const today = new Date().toISOString().split('T')[0];
+    const future = new Date(Date.now()+30*86400000).toISOString().split('T')[0];
+    const { data } = await supabase.from('bookings')
+      .select('booking_date,slot_id').gte('booking_date',today)
+      .lte('booking_date',future).eq('status','confirmed');
+    if (data) {
+      const m = {};
+      data.forEach(b => { if(!m[b.booking_date]) m[b.booking_date]={}; m[b.booking_date][b.slot_id]=true; });
+      setBookings(m);
     }
-    setSelectedSlot(null);
-    setSelectedTrialHour(null);
-    setForm({ name: "", phone: "", childAge: "", note: "" });
-    setTimeout(() => setSuccess(null), 5000);
   };
+  fetchBookings();
+}, []);
+
 
   const iS = { // inputStyle shorthand
     width: "100%", background: "rgba(255,255,255,0.06)",
@@ -1363,7 +1379,32 @@ const MOCK_STUDENTS = [
 // ==================== GALLERY PAGE ====================
 function GalleryPage({ user, setPage }) {
   const [viewMode, setViewMode] = useState("timeline"); // "timeline" | "grid"
-  const [selectedStudent, setSelectedStudent] = useState(MOCK_STUDENTS[0]);
+  //const [selectedStudent, setSelectedStudent] = useState(MOCK_STUDENTS[0]);
+  // --- useEffect สำหรับดึงข้อมูลจากฐานข้อมูล (วางต่อจาก Auth useEffect ก็ได้ค่ะ) ---
+useEffect(() => {
+  const loadAllData = async () => {
+    try {
+      // 1. ดึงข่าวสาร
+      const { data: newsData } = await supabase.from('news').select('*').order('created_at', { ascending: false });
+      if (newsData) setNews(newsData);
+
+      // 2. ดึงข้อมูลการจอง (ถ้าเป็น Admin ให้ดึงทั้งหมด ถ้าเป็น User ให้ดึงเฉพาะของตัวเอง)
+      const { data: bookingsData } = await supabase.from('bookings').select('*');
+      if (bookingsData) setBookings(bookingsData);
+
+      // 3. ดึงรูปภาพใน Gallery
+      const { data: photosData } = await supabase.from('photos').select('*');
+      if (photosData) setGallery(photosData);
+
+    } catch (error) {
+      console.error("Error loading data:", error);
+    }
+  };
+
+  loadAllData();
+}, [user]); // ใส่ [user] เพื่อให้มันโหลดใหม่ทุกครั้งที่มีการ Login/Logout
+  
+  
   const [lightbox, setLightbox] = useState(null);
   const [filterTag, setFilterTag] = useState("ทั้งหมด");
 
@@ -1661,48 +1702,66 @@ const handleGoogleLogin = async () => {
 };
 
   // ── Login ด้วย email/password ──
- const handleLogin = async (e) => {
-  e.preventDefault();
-  setAuthLoading(true);
-  
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: loginData.email,
-    password: loginData.password
-  });
-
-  if (error) {
-    alert("ล็อกอินไม่สำเร็จ: " + error.message);
-  } else {
-    // ระบบจะดึงข้อมูล User และสลับหน้าให้อัตโนมัติผ่าน useEffect
-    setAuthModal(false);
+const handleLogin = async () => {
+  setError('');
+  if (!form.email || !form.password) {
+    setError('กรุณากรอกอีเมลและรหัสผ่าน'); return;
   }
-  setAuthLoading(false);
+  setLoading(true);
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: form.email, password: form.password,
+  });
+  if (error) {
+    setError('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+    setLoading(false); return;
+  }
+  // ดึง profile + role
+  const { data: profile } = await supabase
+    .from('profiles').select('*').eq('id', data.user.id).single();
+  setUser({
+    id: data.user.id,
+    name: profile?.name || data.user.email,
+    email: data.user.email,
+    role: profile?.role || 'student',  // student/teacher/admin/super_admin
+    provider: 'email',
+  });
+  setLoading(false);
+  setPage('home');
 };
+
 
   // ── สมัครสมาชิก ──
 const handleRegister = async (e) => {
   e.preventDefault();
   setAuthLoading(true);
   
-  // 1. สมัครสมาชิกในระบบ Auth ของ Supabase
-  const { data, error } = await supabase.auth.signUp({
-    email: regData.email,
-    password: regData.password,
-    options: {
-      data: {
-        full_name: regData.name,
-        phone: regData.phone
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email: regData.email,
+      password: regData.password,
+      options: {
+        // ข้อมูลในนี้จะถูกส่งไปที่ SQL Trigger เพื่อสร้าง Profile อัตโนมัติ
+        data: {
+          full_name: regData.name,
+          phone: regData.phone,
+          child_name: regData.childName, // เพิ่มส่วนนี้เพื่อให้ตรงกับระบบโรงเรียนหุ่นยนต์
+        }
       }
-    }
-  });
+    });
 
-  if (error) {
-    alert("สมัครสมาชิกไม่สำเร็จ: " + error.message);
-  } else {
-    alert("สมัครสมาชิกสำเร็จ! กรุณาล็อกอินเข้าใช้งาน");
-    setAuthMode('login');
+    if (error) throw error;
+
+    if (data.user) {
+      alert("สมัครสมาชิกสำเร็จ! กรุณาล็อกอินเข้าใช้งาน");
+      setAuthMode('login'); // สลับไปหน้าล็อกอินให้เลย
+      // ล้างข้อมูลในฟอร์ม
+      setRegData({ name: "", email: "", password: "", phone: "", childName: "" });
+    }
+  } catch (error) {
+    alert("ข้อผิดพลาด: " + error.message);
+  } finally {
+    setAuthLoading(false);
   }
-  setAuthLoading(false);
 };
 
   const inputStyle = {
@@ -1984,7 +2043,31 @@ const handleRegister = async (e) => {
 
 // ==================== ADMIN GALLERY PANEL ====================
 function AdminGalleryPanel() {
-  const [students, setStudents] = useState(MOCK_STUDENTS);
+  // const [students, setStudents] = useState(MOCK_STUDENTS);
+  // --- useEffect สำหรับดึงข้อมูลจากฐานข้อมูล (วางต่อจาก Auth useEffect ก็ได้ค่ะ) ---
+useEffect(() => {
+  const loadAllData = async () => {
+    try {
+      // 1. ดึงข่าวสาร
+      const { data: newsData } = await supabase.from('news').select('*').order('created_at', { ascending: false });
+      if (newsData) setNews(newsData);
+
+      // 2. ดึงข้อมูลการจอง (ถ้าเป็น Admin ให้ดึงทั้งหมด ถ้าเป็น User ให้ดึงเฉพาะของตัวเอง)
+      const { data: bookingsData } = await supabase.from('bookings').select('*');
+      if (bookingsData) setBookings(bookingsData);
+
+      // 3. ดึงรูปภาพใน Gallery
+      const { data: photosData } = await supabase.from('photos').select('*');
+      if (photosData) setGallery(photosData);
+
+    } catch (error) {
+      console.error("Error loading data:", error);
+    }
+  };
+
+  loadAllData();
+}, [user]); // ใส่ [user] เพื่อให้มันโหลดใหม่ทุกครั้งที่มีการ Login/Logout
+  
   const [selectedId, setSelectedId] = useState(MOCK_STUDENTS[0].id);
   const [uploadForm, setUploadForm] = useState({ caption: "", tag: "กิจกรรม", date: new Date().toISOString().split("T")[0], milestone: false, url: "" });
   const [showUpload, setShowUpload] = useState(false);
@@ -2258,11 +2341,28 @@ function AdminGalleryPanel() {
 }
 
 // ==================== MOCK DATA for Admin System ====================
-const MOCK_TEACHERS = [
-  { id: "t001", name: "ครูสมชาย ใจดี", phone: "081-234-5678", email: "teacher1@baanbot.com", specialty: "Robotics & Coding", hoursThisMonth: 24, status: "active" },
-  { id: "t002", name: "ครูนภา รักเรียน", phone: "089-876-5432", email: "teacher2@baanbot.com", specialty: "Scratch & AI", hoursThisMonth: 18, status: "active" },
-  { id: "t003", name: "ครูวิชัย สอนเก่ง", phone: "086-111-2222", email: "teacher3@baanbot.com", specialty: "Electronics", hoursThisMonth: 12, status: "active" },
-];
+//const MOCK_TEACHERS = [
+//  { id: "t001", name: "ครูสมชาย ใจดี", phone: "081-234-5678", email: "teacher1@baanbot.com", specialty: "Robotics & Coding", hoursThisMonth: 24, status: "active" },
+//  { id: "t002", name: "ครูนภา รักเรียน", phone: "089-876-5432", email: "teacher2@baanbot.com", specialty: "Scratch & AI", hoursThisMonth: 18, status: "active" },
+//  { id: "t003", name: "ครูวิชัย สอนเก่ง", phone: "086-111-2222", email: "teacher3@baanbot.com", specialty: "Electronics", hoursThisMonth: 12, status: "active" },
+//];
+const [teachers, setTeachers] = useState([]);
+const [adminBookings, setAdminBookings] = useState([]);
+ 
+useEffect(() => {
+  const fetchData = async () => {
+    const { data: t } = await supabase.from('teachers').select('*').eq('status','active');
+    const { data: b } = await supabase.from('bookings')
+      .select('*, profiles(name)')
+      .gte('booking_date', new Date().toISOString().split('T')[0])
+      .order('booking_date');
+    if (t) setTeachers(t);
+    if (b) setAdminBookings(b);
+  };
+  fetchData();
+}, []);
+
+
 
 const MOCK_BOOKINGS_ADMIN = [
   { id: "b001", studentName: "ด.ช.กวิน สุขใจ", parentPhone: "086-123-4567", date: "2026-02-26", slot: "รอบเช้า 1", slotTime: "08:30–10:30", type: "regular", status: "confirmed", assignedTeacher: "t001", income: 2000 },
@@ -2368,7 +2468,24 @@ function DashboardPanel({ isSuperAdmin }) {
 
 // ── 2. Bookings + Assign Teacher Panel ──
 function BookingsPanel({ isSuperAdmin }) {
-  const [bookings, setBookings] = useState(MOCK_BOOKINGS_ADMIN);
+  //const [bookings, setBookings] = useState(MOCK_BOOKINGS_ADMIN);
+    const [teachers, setTeachers] = useState([]);
+  const [adminBookings, setAdminBookings] = useState([]);
+ 
+useEffect(() => {
+  const fetchData = async () => {
+    const { data: t } = await supabase.from('teachers').select('*').eq('status','active');
+    const { data: b } = await supabase.from('bookings')
+      .select('*, profiles(name)')
+      .gte('booking_date', new Date().toISOString().split('T')[0])
+      .order('booking_date');
+    if (t) setTeachers(t);
+    if (b) setAdminBookings(b);
+  };
+  fetchData();
+}, []);
+
+  
   const [assignModal, setAssignModal] = useState(null); // booking id
   const [filter, setFilter] = useState("all"); // all | pending | confirmed
   const CS = { fontFamily: "'Kanit', sans-serif" };
@@ -2502,7 +2619,28 @@ function BookingsPanel({ isSuperAdmin }) {
 
 // ── 3. Teacher Management Panel ──
 function TeachersPanel({ isSuperAdmin }) {
-  const [teachers, setTeachers] = useState(MOCK_TEACHERS);
+  //const [teachers, setTeachers] = useState(MOCK_TEACHERS);
+
+  const [teachers, setTeachers] = useState([]);
+  const [adminBookings, setAdminBookings] = useState([]);
+ 
+useEffect(() => {
+  const fetchData = async () => {
+    const { data: t } = await supabase.from('teachers').select('*').eq('status','active');
+    const { data: b } = await supabase.from('bookings')
+      .select('*, profiles(name)')
+      .gte('booking_date', new Date().toISOString().split('T')[0])
+      .order('booking_date');
+    if (t) setTeachers(t);
+    if (b) setAdminBookings(b);
+  };
+  fetchData();
+}, []);
+
+ 
+
+
+  
   const [showAdd, setShowAdd] = useState(false);
   const [newTeacher, setNewTeacher] = useState({ name: "", phone: "", email: "", specialty: "" });
   const CS = { fontFamily: "'Kanit', sans-serif" };
