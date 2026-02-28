@@ -237,7 +237,7 @@ function NavBar({ page, setPage, user, setUser }) {
               fontSize: 13, fontWeight: 700, color: "#0a0c14",
               fontFamily: "'Kanit', sans-serif"
             }}>{user.name[0]}</div>
-            <button onClick={() => setUser(null)} style={{
+            <button onClick={async () => { await supabase.auth.signOut(); setUser(null); }} style={{
               background: "rgba(255,50,50,0.15)", border: "1px solid rgba(255,50,50,0.3)",
               color: "#ff6b6b", padding: "5px 12px", borderRadius: 6, cursor: "pointer",
               fontFamily: "'Kanit', sans-serif", fontSize: 12
@@ -1664,15 +1664,21 @@ function LoginPage({ setUser, setPage }) {
   const [showPass, setShowPass] = useState(false);
   const [registerSuccess, setRegisterSuccess] = useState(false);
 
-  // ── จำลอง Google OAuth popup ──
+  // ── Google OAuth ──
 const handleGoogleLogin = async () => {
+  setGoogleLoading(true);
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: window.location.origin
+      redirectTo: window.location.origin,
+      queryParams: { access_type: 'offline', prompt: 'consent' },
     }
   });
-  if (error) alert("Google Login Error: " + error.message);
+  if (error) {
+    alert("Google Login Error: " + error.message);
+    setGoogleLoading(false);
+  }
+  // ถ้าไม่ error จะ redirect ออกจากหน้า → onAuthStateChange จะจัดการเมื่อกลับมา
 };
 
   // ── Login ด้วย email/password ──
@@ -5218,11 +5224,51 @@ const THEMES = {
   },
 };
 
+// Helper: ดึง profile จาก Supabase แล้ว set user state
+async function loadUserFromSession(authUser, setUser, setPage) {
+  if (!authUser) { setUser(null); return; }
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', authUser.id)
+    .single();
+  setUser({
+    id: authUser.id,
+    name: profile?.name || authUser.user_metadata?.full_name || authUser.email,
+    email: authUser.email,
+    role: profile?.role || 'student',
+    provider: authUser.app_metadata?.provider || 'email',
+  });
+  setPage('home');
+}
+
 export default function Page() {
   const [page, setPage] = useState("home");
   const [user, setUser] = useState(null);
   const [themeId, setThemeId] = useState("cyber");
   const theme = THEMES[themeId];
+
+  // ── Restore session on page load + listen for OAuth callback ──
+  useEffect(() => {
+    // 1. ดึง session ปัจจุบัน (กรณี refresh หรือ Google OAuth redirect กลับมา)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) loadUserFromSession(session.user, setUser, setPage);
+    });
+
+    // 2. Subscribe เพื่อจับ auth event (SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          await loadUserFromSession(session.user, setUser, setPage);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setPage('home');
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     document.title = "BaanBot Chanthaburi";
