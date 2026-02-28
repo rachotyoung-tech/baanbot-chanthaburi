@@ -1,6 +1,6 @@
 "use client";
 import { supabase } from '../lib/supabase';
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 export const dynamic = "force-dynamic";
 
@@ -5245,6 +5245,11 @@ async function loadUserFromSession(authUser, setUser, setPage) {
 }
 
 export default function Page() {
+  const [isMounted, setIsMounted] = React.useState(false);
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
+  
   const [page, setPage] = useState("home");
   const [user, setUser] = useState(null);
   const [themeId, setThemeId] = useState("cyber");
@@ -5332,6 +5337,9 @@ export default function Page() {
     }
   };
 
+  if (!isMounted) {
+    return <div className="min-h-screen bg-black" />; // แสดงหน้าจอดำรอแป๊บนึงตอนโหลด
+  }
   return (
     <div style={{ fontFamily: theme.fontBody, color: theme.text, transition: "background 0.4s, color 0.3s" }}>
       <NavBar page={page} setPage={setPage} user={user} setUser={setUser} theme={theme} />
