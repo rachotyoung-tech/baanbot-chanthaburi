@@ -2311,27 +2311,7 @@ function AdminGalleryPanel() {
   );
 }
 
-// ==================== MOCK DATA for Admin System ====================
-//const MOCK_TEACHERS = [
-//  { id: "t001", name: "ครูสมชาย ใจดี", phone: "081-234-5678", email: "teacher1@baanbot.com", specialty: "Robotics & Coding", hoursThisMonth: 24, status: "active" },
-//  { id: "t002", name: "ครูนภา รักเรียน", phone: "089-876-5432", email: "teacher2@baanbot.com", specialty: "Scratch & AI", hoursThisMonth: 18, status: "active" },
-//  { id: "t003", name: "ครูวิชัย สอนเก่ง", phone: "086-111-2222", email: "teacher3@baanbot.com", specialty: "Electronics", hoursThisMonth: 12, status: "active" },
-//];
-const [teachers, setTeachers] = useState([]);
-const [adminBookings, setAdminBookings] = useState([]);
- 
-useEffect(() => {
-  const fetchData = async () => {
-    const { data: t } = await supabase.from('teachers').select('*').eq('status','active');
-    const { data: b } = await supabase.from('bookings')
-      .select('*, profiles(name)')
-      .gte('booking_date', new Date().toISOString().split('T')[0])
-      .order('booking_date');
-    if (t) setTeachers(t);
-    if (b) setAdminBookings(b);
-  };
-  fetchData();
-}, []);
+// MOCK_TEACHERS ถูกลบ → โหลดจาก Supabase ใน BookingsPanel และ TeachersPanel
 
 
 
