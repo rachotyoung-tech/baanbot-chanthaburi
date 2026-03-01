@@ -5220,10 +5220,10 @@ function CompleteProfileModal({ user, setUser, onClose }) {
     setLoading(true);
     const { error: dbError } = await supabase
       .from('profiles')
-      .update({ name: form.name, phone: form.phone, child_name: form.childName })
+      .update({ name: form.name, full_name: form.name, phone: form.phone, child_name: form.childName })
       .eq('id', user.id);
     if (dbError) { setError("บันทึกไม่สำเร็จ: " + dbError.message); setLoading(false); return; }
-    setUser(prev => ({ ...prev, name: form.name, phone: form.phone, childName: form.childName, needsProfileComplete: false }));
+    setUser(prev => ({ ...prev, name: form.name, phone: form.phone, childName: form.childName }));
     onClose();
   };
 
@@ -5340,58 +5340,64 @@ function CompleteProfileModal({ user, setUser, onClose }) {
   );
 }
 
-// คืนค่า { user, isNewGoogleUser }
 async function loadUserFromSession(authUser, setUser, setPage, setCompleteProfileModal) {
   if (!authUser) { setUser(null); return; }
 
   const provider = authUser.app_metadata?.provider || 'email';
   const isGoogle = provider === 'google';
 
-  // ดึง profile จาก DB
-  const { data: profile, error: profileError } = await supabase
+  // ดึง profile จาก DB (รองรับทั้งคอลัมน์ name และ full_name)
+  const { data: profile } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', authUser.id)
     .single();
 
-  const isNewUser = !profile && profileError?.code === 'PGRST116'; // row not found
+  // ชื่อที่แสดง: ลำดับ name → full_name → Google metadata → email
+  const displayName =
+    profile?.name ||
+    profile?.full_name ||
+    authUser.user_metadata?.full_name ||
+    authUser.user_metadata?.name ||
+    authUser.email;
 
-  if (isNewUser && isGoogle) {
-    // สร้าง profile เบื้องต้นก่อน (ข้อมูลจาก Google)
-    const googleName = authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.email;
-    await supabase.from('profiles').insert({
-      id: authUser.id,
-      email: authUser.email,
-      name: googleName,
-      role: 'student',
-    });
+  if (isGoogle) {
+    // upsert เสมอ — รองรับทั้งกรณี trigger สร้างไว้แล้วและกรณียังไม่มี record
+    await supabase.from('profiles').upsert({
+      id:        authUser.id,
+      email:     authUser.email,
+      name:      profile?.name      || displayName,
+      full_name: profile?.full_name || displayName,
+      role:      profile?.role      || 'student',
+    }, { onConflict: 'id' });
 
-    // set user state
     setUser({
-      id: authUser.id,
-      name: googleName,
-      email: authUser.email,
-      role: 'student',
-      provider: 'google',
-      needsProfileComplete: true,
+      id:        authUser.id,
+      name:      displayName,
+      email:     authUser.email,
+      role:      profile?.role || 'student',
+      provider:  'google',
+      phone:     profile?.phone     || null,
+      childName: profile?.child_name || null,
     });
 
-    // เปิด modal ให้กรอกข้อมูลเพิ่มเติม (ชื่อผู้ปกครอง / นักเรียน / เบอร์)
-    if (setCompleteProfileModal) setCompleteProfileModal(true);
-    setPage('home');
+    // ถ้ายังไม่มี phone หรือ child_name → เปิด modal กรอกข้อมูลเพิ่มเติม
+    const needsComplete = !profile?.phone || !profile?.child_name;
+    if (needsComplete && setCompleteProfileModal) setCompleteProfileModal(true);
   } else {
-    // User เก่า หรือ email user — โหลด profile ปกติ
+    // email/password user
     setUser({
-      id: authUser.id,
-      name: profile?.name || authUser.user_metadata?.full_name || authUser.email,
-      email: authUser.email,
-      role: profile?.role || 'student',
+      id:        authUser.id,
+      name:      displayName,
+      email:     authUser.email,
+      role:      profile?.role || 'student',
       provider,
-      phone: profile?.phone,
-      childName: profile?.child_name,
+      phone:     profile?.phone     || null,
+      childName: profile?.child_name || null,
     });
-    setPage('home');
   }
+
+  setPage('home');
 }
 
 export default function Page() {
