@@ -1673,7 +1673,7 @@ const handleGoogleLogin = async () => {
     provider: 'google',
     options: {
       redirectTo: window.location.origin,
-      queryParams: { access_type: 'offline', prompt: 'consent' },
+      queryParams: { access_type: 'offline', prompt: 'select_account' },
     }
   });
   if (error) {
@@ -5207,46 +5207,212 @@ const THEMES = {
 };
 
 // Helper: ดึง profile จาก Supabase แล้ว set user state
-async function loadUserFromSession(authUser, setUser, setPage) {
+// ==================== COMPLETE PROFILE MODAL (Google new user) ====================
+function CompleteProfileModal({ user, setUser, onClose }) {
+  const [form, setForm] = useState({ name: user?.name || "", phone: "", childName: "" });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSave = async () => {
+    if (!form.name.trim() || !form.phone.trim() || !form.childName.trim()) {
+      setError("กรุณากรอกข้อมูลให้ครบทุกช่อง"); return;
+    }
+    setLoading(true);
+    const { error: dbError } = await supabase
+      .from('profiles')
+      .update({ name: form.name, phone: form.phone, child_name: form.childName })
+      .eq('id', user.id);
+    if (dbError) { setError("บันทึกไม่สำเร็จ: " + dbError.message); setLoading(false); return; }
+    setUser(prev => ({ ...prev, name: form.name, phone: form.phone, childName: form.childName, needsProfileComplete: false }));
+    onClose();
+  };
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 9999,
+      background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)",
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 24
+    }}>
+      <div style={{
+        background: "linear-gradient(135deg,#0d1525,#1a1030)",
+        border: "1px solid rgba(247,157,7,0.35)",
+        borderRadius: 24, padding: "36px 32px", width: "100%", maxWidth: 440,
+        boxShadow: "0 24px 80px rgba(0,0,0,0.6)"
+      }}>
+        {/* Header */}
+        <div style={{ textAlign: "center", marginBottom: 28 }}>
+          <div style={{ fontSize: 40, marginBottom: 10 }}>👋</div>
+          <div style={{ fontFamily: "'Kanit',sans-serif", fontWeight: 800, fontSize: 22, color: "#fff", marginBottom: 6 }}>
+            ยินดีต้อนรับสู่ BaanBot!
+          </div>
+          <div style={{ fontFamily: "'Kanit',sans-serif", fontSize: 14, color: "rgba(255,255,255,0.5)" }}>
+            กรุณากรอกข้อมูลเพิ่มเติมเพื่อสมัครสมาชิกให้สมบูรณ์
+          </div>
+        </div>
+
+        {/* Form */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* Parent name */}
+          <div>
+            <div style={{ fontFamily: "'Kanit',sans-serif", fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 6 }}>
+              ชื่อ-นามสกุล ผู้ปกครอง *
+            </div>
+            <input
+              value={form.name}
+              onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+              placeholder="เช่น นายสมชาย ใจดี"
+              style={{
+                width: "100%", background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10,
+                padding: "11px 14px", color: "#fff",
+                fontFamily: "'Kanit',sans-serif", fontSize: 14, outline: "none",
+                boxSizing: "border-box"
+              }}
+            />
+          </div>
+
+          {/* Student name */}
+          <div>
+            <div style={{ fontFamily: "'Kanit',sans-serif", fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 6 }}>
+              ชื่อ-นามสกุล นักเรียน *
+            </div>
+            <input
+              value={form.childName}
+              onChange={e => setForm(p => ({ ...p, childName: e.target.value }))}
+              placeholder="เช่น ด.ญ.สมหญิง ใจดี"
+              style={{
+                width: "100%", background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10,
+                padding: "11px 14px", color: "#fff",
+                fontFamily: "'Kanit',sans-serif", fontSize: 14, outline: "none",
+                boxSizing: "border-box"
+              }}
+            />
+          </div>
+
+          {/* Phone */}
+          <div>
+            <div style={{ fontFamily: "'Kanit',sans-serif", fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 6 }}>
+              เบอร์โทรศัพท์ *
+            </div>
+            <input
+              value={form.phone}
+              onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
+              placeholder="0XX-XXX-XXXX"
+              type="tel"
+              style={{
+                width: "100%", background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10,
+                padding: "11px 14px", color: "#fff",
+                fontFamily: "'Kanit',sans-serif", fontSize: 14, outline: "none",
+                boxSizing: "border-box"
+              }}
+            />
+          </div>
+
+          {error && (
+            <div style={{ fontFamily: "'Kanit',sans-serif", fontSize: 13, color: "#ff6b6b", textAlign: "center" }}>
+              {error}
+            </div>
+          )}
+
+          <button
+            onClick={handleSave}
+            disabled={loading}
+            style={{
+              marginTop: 4,
+              background: loading ? "rgba(255,255,255,0.1)" : "linear-gradient(135deg,#F99D07,#FFD700)",
+              border: "none", color: loading ? "rgba(255,255,255,0.4)" : "#0a0c14",
+              padding: "14px", borderRadius: 10, cursor: loading ? "not-allowed" : "pointer",
+              fontFamily: "'Kanit',sans-serif", fontWeight: 700, fontSize: 15,
+              transition: "all 0.2s"
+            }}
+          >
+            {loading ? "กำลังบันทึก..." : "✅ บันทึกข้อมูล"}
+          </button>
+
+          <div style={{ fontFamily: "'Kanit',sans-serif", fontSize: 12, color: "rgba(255,255,255,0.3)", textAlign: "center" }}>
+            อีเมล: {user?.email}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// คืนค่า { user, isNewGoogleUser }
+async function loadUserFromSession(authUser, setUser, setPage, setCompleteProfileModal) {
   if (!authUser) { setUser(null); return; }
-  const { data: profile } = await supabase
+
+  const provider = authUser.app_metadata?.provider || 'email';
+  const isGoogle = provider === 'google';
+
+  // ดึง profile จาก DB
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', authUser.id)
     .single();
-  setUser({
-    id: authUser.id,
-    name: profile?.name || authUser.user_metadata?.full_name || authUser.email,
-    email: authUser.email,
-    role: profile?.role || 'student',
-    provider: authUser.app_metadata?.provider || 'email',
-  });
-  setPage('home');
+
+  const isNewUser = !profile && profileError?.code === 'PGRST116'; // row not found
+
+  if (isNewUser && isGoogle) {
+    // สร้าง profile เบื้องต้นก่อน (ข้อมูลจาก Google)
+    const googleName = authUser.user_metadata?.full_name || authUser.user_metadata?.name || authUser.email;
+    await supabase.from('profiles').insert({
+      id: authUser.id,
+      email: authUser.email,
+      name: googleName,
+      role: 'student',
+    });
+
+    // set user state
+    setUser({
+      id: authUser.id,
+      name: googleName,
+      email: authUser.email,
+      role: 'student',
+      provider: 'google',
+      needsProfileComplete: true,
+    });
+
+    // เปิด modal ให้กรอกข้อมูลเพิ่มเติม (ชื่อผู้ปกครอง / นักเรียน / เบอร์)
+    if (setCompleteProfileModal) setCompleteProfileModal(true);
+    setPage('home');
+  } else {
+    // User เก่า หรือ email user — โหลด profile ปกติ
+    setUser({
+      id: authUser.id,
+      name: profile?.name || authUser.user_metadata?.full_name || authUser.email,
+      email: authUser.email,
+      role: profile?.role || 'student',
+      provider,
+      phone: profile?.phone,
+      childName: profile?.child_name,
+    });
+    setPage('home');
+  }
 }
 
 export default function Page() {
-  const [isMounted, setIsMounted] = React.useState(false);
-  React.useEffect(() => {
-    setIsMounted(true);
-  }, []);
-  
   const [page, setPage] = useState("home");
   const [user, setUser] = useState(null);
   const [themeId, setThemeId] = useState("cyber");
+  const [showCompleteProfile, setShowCompleteProfile] = useState(false);
   const theme = THEMES[themeId];
 
   // ── Restore session on page load + listen for OAuth callback ──
   useEffect(() => {
     // 1. ดึง session ปัจจุบัน (กรณี refresh หรือ Google OAuth redirect กลับมา)
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) loadUserFromSession(session.user, setUser, setPage);
+      if (session?.user) loadUserFromSession(session.user, setUser, setPage, setShowCompleteProfile);
     });
 
     // 2. Subscribe เพื่อจับ auth event (SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
-          await loadUserFromSession(session.user, setUser, setPage);
+          await loadUserFromSession(session.user, setUser, setPage, setShowCompleteProfile);
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
           setPage('home');
@@ -5317,13 +5483,17 @@ export default function Page() {
     }
   };
 
-  if (!isMounted) {
-    return <div className="min-h-screen bg-black" />; // แสดงหน้าจอดำรอแป๊บนึงตอนโหลด
-  }
   return (
     <div style={{ fontFamily: theme.fontBody, color: theme.text, transition: "background 0.4s, color 0.3s" }}>
       <NavBar page={page} setPage={setPage} user={user} setUser={setUser} theme={theme} />
       {renderPage()}
+      {showCompleteProfile && user && (
+        <CompleteProfileModal
+          user={user}
+          setUser={setUser}
+          onClose={() => setShowCompleteProfile(false)}
+        />
+      )}
 
       <footer style={{ background: themeId === "cyber" ? "#060810" : themeId === "nature" ? "#E0DDD6" : "#f3f3f3", padding: "40px 24px", borderTop: `1px solid ${theme.surfaceBorder}` }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 20 }}>
