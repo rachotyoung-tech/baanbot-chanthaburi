@@ -238,7 +238,7 @@ function NavBar({ page, setPage, user, setUser }) {
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 13, fontWeight: 700, color: "#0a0c14",
               fontFamily: "'Kanit', sans-serif"
-            }}>{user.name[0]}</div>
+            }}>{(user.name || user.email || "?")[0].toUpperCase()}</div>
             <button onClick={async () => { await supabase.auth.signOut(); setUser(null); }} style={{
               background: "rgba(255,50,50,0.15)", border: "1px solid rgba(255,50,50,0.3)",
               color: "#ff6b6b", padding: "5px 12px", borderRadius: 6, cursor: "pointer",
@@ -1712,37 +1712,49 @@ const handleLogin = async () => {
 };
 
 
-  // ── สมัครสมาชิก ──
+  // ── สมัครสมาชิก (Email/Password) ──
 const handleRegister = async (e) => {
-  e.preventDefault();
-  setAuthLoading(true);
-  
+  if (e && e.preventDefault) e.preventDefault();
+  if (!form.name.trim() || !form.email.trim() || !form.password.trim()) {
+    setError("กรุณากรอกชื่อ อีเมล และรหัสผ่าน"); return;
+  }
+  if (form.password !== form.confirmPassword) {
+    setError("รหัสผ่านไม่ตรงกัน"); return;
+  }
+  setLoading(true);
+  setError("");
   try {
     const { data, error } = await supabase.auth.signUp({
-      email: regData.email,
-      password: regData.password,
+      email: form.email.trim(),
+      password: form.password,
       options: {
-        // ข้อมูลในนี้จะถูกส่งไปที่ SQL Trigger เพื่อสร้าง Profile อัตโนมัติ
         data: {
-          full_name: regData.name,
-          phone: regData.phone,
-          child_name: regData.childName, // เพิ่มส่วนนี้เพื่อให้ตรงกับระบบโรงเรียนหุ่นยนต์
+          full_name: form.name.trim(),
+          phone: form.phone.trim(),
+          child_name: form.childName.trim(),
         }
       }
     });
-
     if (error) throw error;
-
     if (data.user) {
-      alert("สมัครสมาชิกสำเร็จ! กรุณาล็อกอินเข้าใช้งาน");
-      setAuthMode('login'); // สลับไปหน้าล็อกอินให้เลย
-      // ล้างข้อมูลในฟอร์ม
-      setRegData({ name: "", email: "", password: "", phone: "", childName: "" });
+      // สร้าง profile record
+      await supabase.from('profiles').upsert({
+        id: data.user.id,
+        email: form.email.trim(),
+        name: form.name.trim(),
+        full_name: form.name.trim(),
+        phone: form.phone.trim(),
+        child_name: form.childName.trim(),
+        role: 'student',
+      }, { onConflict: 'id' });
+      setRegisterSuccess(true);
+      setTab("login");
+      setForm({ name: "", email: "", password: "", confirmPassword: "", childName: "", phone: "" });
     }
-  } catch (error) {
-    alert("ข้อผิดพลาด: " + error.message);
+  } catch (err) {
+    setError("ข้อผิดพลาด: " + err.message);
   } finally {
-    setAuthLoading(false);
+    setLoading(false);
   }
 };
 
