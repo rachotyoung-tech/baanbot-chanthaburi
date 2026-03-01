@@ -2355,6 +2355,8 @@ function DashboardPanel({ isSuperAdmin }) {
     { icon: "🎓", label: "ผู้สอนประจำ", val: "...", color: "#FFD700" },
     { icon: "🖼️", label: "ภาพในคลัง", val: "...", color: "#FF4757" },
   ]);
+  const [totalIncome, setTotalIncome] = useState(0);
+  const [totalExpense, setTotalExpense] = useState(0);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -2371,9 +2373,18 @@ function DashboardPanel({ isSuperAdmin }) {
         { icon: "🎓", label: "ผู้สอนประจำ", val: `${teachers || 0} คน`, color: "#FFD700" },
         { icon: "🖼️", label: "ภาพในคลัง", val: `${photos || 0} ภาพ`, color: "#FF4757" },
       ]);
+      if (isSuperAdmin) {
+        const { data: txData } = await supabase.from('transactions').select('type, amount');
+        if (txData) {
+          const inc = txData.filter(t => t.type === 'income').reduce((s, t) => s + (t.amount || 0), 0);
+          const exp = txData.filter(t => t.type === 'expense').reduce((s, t) => s + (t.amount || 0), 0);
+          setTotalIncome(inc);
+          setTotalExpense(exp);
+        }
+      }
     };
     fetchStats();
-  }, []);
+  }, [isSuperAdmin]);
   const CS = { fontFamily: "'Kanit', sans-serif" };
   return (
     <div>
