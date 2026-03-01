@@ -335,7 +335,7 @@ function HomePage({ setPage }) {
       {/* Facebook Feed Section */}
       <section style={{ padding: "80px 24px", background: "#0d0f1a" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          <SectionHeader icon="📱" title="ติดตามข่าวสารจาก Facebook" sub="อัปเดตล่าสุดจากเพจ iBot Academy Chanthaburi" />
+          <SectionHeader icon="📱" title="ติดตามข่าวสารจาก Facebook" sub="อัปเดตล่าสุดจากเพจ iBot Academy Chanthaburi." />
           <div style={{
             display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24,
             "@media(max-width:640px)": { gridTemplateColumns: "1fr" }
